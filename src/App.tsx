@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import './App.css'
+import { supabase } from './lib/supabaseClient'
+import { useAuth } from './context/AuthContext'
+import Login from './components/Login'
 
 type IconName = 'grid' | 'map' | 'wallet' | 'sparkles' | 'settings' | 'plus' | 'arrow' | 'pin' | 'calendar' | 'users' | 'check' | 'clock' | 'plane' | 'close' | 'link' | 'send'
 
@@ -41,7 +44,8 @@ const initialDestinations = [
   { name: 'Oporto', country: 'Portugal', days: '3 noches', image: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=900&q=85', emoji: '🇵🇹' },
 ]
 
-function App() {
+function Dashboard() {
+  const { profile, user, signOut } = useAuth()
   const [activeNav, setActiveNav] = useState('Resumen')
   const [destinations, setDestinations] = useState(initialDestinations)
   const [tasks, setTasks] = useState(initialTasks)
@@ -49,7 +53,27 @@ function App() {
   const [destinationName, setDestinationName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [toast, setToast] = useState('')
+  const [dbStatus, setDbStatus] = useState<'conectando' | 'conectado' | 'error'>('conectando')
   const completedTasks = tasks.filter((task) => task.done).length
+  const profileName = profile?.full_name ?? 'Viajero'
+  const profileInitial = profileName.trim().charAt(0).toUpperCase() || 'V'
+  const profileSubtitle = user?.email ?? ''
+
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('*')
+      .limit(1)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error de Supabase:', error.message)
+          setDbStatus('error')
+        } else {
+          console.log('Conectado a Supabase:', data)
+          setDbStatus('conectado')
+        }
+      })
+  }, [])
 
   const goTo = (section: string, id: string) => {
     setActiveNav(section)
@@ -114,14 +138,14 @@ function App() {
             <button onClick={() => setModal('invite')}>Invitar a alguien <Icon name="plus" size={15} /></button>
           </div>
           <button className="nav-item settings-button" onClick={() => showToast('La configuración estará disponible pronto')}><Icon name="settings" /><span>Configuración</span></button>
-          <div className="profile-row"><span className="avatar avatar-coral profile-avatar">A</span><span><strong>Armando Numa</strong><small>Organizador</small></span><span className="profile-more">···</span></div>
+          <div className="profile-row"><span className="avatar avatar-coral profile-avatar">{profileInitial}</span><span><strong>{profileName}</strong><small>{profileSubtitle}</small></span><button className="profile-more profile-logout" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={() => void signOut()}>⏻</button></div>
         </div>
       </aside>
 
       <main className="main-content" id="inicio">
         <header className="topbar">
           <div className="breadcrumbs"><span>Mis viajes</span><span className="breadcrumb-slash">/</span><strong>Verano en familia</strong></div>
-          <div className="topbar-actions"><div className="avatar-stack" aria-label="4 personas en el viaje"><span className="avatar avatar-coral">M</span><span className="avatar avatar-blue">P</span><span className="avatar avatar-yellow">A</span><span className="avatar avatar-green">L</span></div><button className="button button-outline invite-button" onClick={() => setModal('invite')}><Icon name="users" size={17} /> Invitar</button><button className="icon-button" aria-label="Más opciones" onClick={() => showToast('No hay notificaciones nuevas')}>···</button></div>
+          <div className="topbar-actions"><span role="status" style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, background: dbStatus === 'conectado' ? '#dcfce7' : dbStatus === 'error' ? '#fee2e2' : '#fef9c3', color: dbStatus === 'conectado' ? '#166534' : dbStatus === 'error' ? '#991b1b' : '#854d0e' }}>{dbStatus === 'conectando' ? 'Conectando a Supabase…' : dbStatus === 'conectado' ? 'Supabase conectado ✓' : 'Error de conexión — revisa la consola'}</span><div className="avatar-stack" aria-label="4 personas en el viaje"><span className="avatar avatar-coral">M</span><span className="avatar avatar-blue">P</span><span className="avatar avatar-yellow">A</span><span className="avatar avatar-green">L</span></div><button className="button button-outline invite-button" onClick={() => setModal('invite')}><Icon name="users" size={17} /> Invitar</button><button className="icon-button" aria-label="Más opciones" onClick={() => showToast('No hay notificaciones nuevas')}>···</button></div>
         </header>
 
         <div className="page-container">
@@ -176,7 +200,7 @@ function App() {
               </section>
 
               <section className="side-card tasks-card" id="ideas">
-                <div className="card-section-heading"><div><span className="card-icon task-icon"><Icon name="check" size={18} /></span><div><p className="eyebrow">PARA IR CALENTANDO</p><h2>Lista de tareas</h2></div></div><button className="icon-button small-icon-button" aria-label="Añadir tarea" onClick={() => showToast('Pronto podrás añadir más tareas') }><Icon name="plus" size={17} /></button></div>
+                <div className="card-section-heading"><div><span className="card-icon task-icon"><Icon name="check" size={18} /></span><div><p className="eyebrow">PARA IR CALENTANDO</p><h2>Lista de tareas</h2></div></div><button className="icon-button small-icon-button" aria-label="Añadir tarea" onClick={() => showToast('Pronto podrás añadir más tareas')}><Icon name="plus" size={17} /></button></div>
                 <div className="task-progress"><span style={{ width: `${tasks.length ? completedTasks / tasks.length * 100 : 0}%` }} /></div>
                 <p className="task-progress-label">{completedTasks} de {tasks.length} tareas completadas</p>
                 <div className="task-list">{tasks.map((task) => <label className={task.done ? 'task-row task-done' : 'task-row'} key={task.id}><input type="checkbox" checked={task.done} onChange={() => setTasks((current) => current.map((item) => item.id === task.id ? { ...item, done: !item.done } : item))} /><span className="custom-checkbox"><Icon name="check" size={13} /></span><span className="task-copy"><strong>{task.label}</strong><small>{task.who}</small></span><span className="task-menu">···</span></label>)}</div>
@@ -203,6 +227,16 @@ function App() {
       </section></div>}
     </div>
   )
+}
+
+function App() {
+  const { session, loading } = useAuth()
+
+  if (loading) {
+    return <div className="auth-loading" role="status">Preparando el viaje…</div>
+  }
+
+  return session ? <Dashboard /> : <Login />
 }
 
 export default App
