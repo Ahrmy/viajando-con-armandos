@@ -44,16 +44,53 @@ const initialDestinations = [
   { name: 'Oporto', country: 'Portugal', days: '3 noches', image: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=900&q=85', emoji: '🇵🇹' },
 ]
 
+type Trip = {
+  id: number
+  title: string
+  label: string
+  destination: string
+  dates: string
+  image: string
+}
+
+const defaultTripImage = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1800&q=90'
+
+const initialTrips: Trip[] = [
+  {
+    id: 1,
+    title: 'Verano en familia',
+    label: 'Verano 2027',
+    destination: 'Portugal',
+    dates: '5 – 15 agosto, 2027',
+    image: 'https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1800&q=90',
+  },
+]
+
+const modalCopy = {
+  destination: { icon: 'pin', eyebrow: 'EL MAPA ESTÁ ESPERANDO', title: 'Añade una parada', description: 'Ese sitio del que todos habláis merece un hueco en el viaje.' },
+  invite: { icon: 'users', eyebrow: 'CUANTOS MÁS, MEJOR', title: 'Invita a la familia', description: 'Comparte la organización del viaje con quien tú quieras.' },
+  trip: { icon: 'plane', eyebrow: 'NUEVA AVENTURA EN CAMINO', title: 'Crea un nuevo viaje', description: 'Ponedle nombre y un destino soñado; las fechas las ajustáis luego.' },
+} as const
+
 function Dashboard() {
   const { profile, user, signOut } = useAuth()
   const [activeNav, setActiveNav] = useState('Resumen')
+  const [trips, setTrips] = useState(initialTrips)
+  const [activeTripId, setActiveTripId] = useState(initialTrips[0].id)
   const [destinations, setDestinations] = useState(initialDestinations)
   const [tasks, setTasks] = useState(initialTasks)
-  const [modal, setModal] = useState<'destination' | 'invite' | null>(null)
+  const [modal, setModal] = useState<'destination' | 'invite' | 'trip' | null>(null)
   const [destinationName, setDestinationName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
+  const [tripMenuOpen, setTripMenuOpen] = useState(false)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [tripName, setTripName] = useState('')
+  const [tripDestination, setTripDestination] = useState('')
+  const [tripStart, setTripStart] = useState('')
+  const [tripEnd, setTripEnd] = useState('')
   const [toast, setToast] = useState('')
   const [dbStatus, setDbStatus] = useState<'conectando' | 'conectado' | 'error'>('conectando')
+  const activeTrip = trips.find((trip) => trip.id === activeTripId) ?? trips[0]
   const completedTasks = tasks.filter((task) => task.done).length
   const profileName = profile?.full_name ?? 'Viajero'
   const profileInitial = profileName.trim().charAt(0).toUpperCase() || 'V'
@@ -108,6 +145,36 @@ function Dashboard() {
     showToast('¡Invitación lista para compartir!')
   }
 
+  const createTrip = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = tripName.trim()
+    if (!name) return
+    const destination = tripDestination.trim() || 'Por descubrir'
+    const formatDate = (iso: string) => iso
+      ? new Date(`${iso}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+      : ''
+    const start = formatDate(tripStart)
+    const end = formatDate(tripEnd)
+    const dates = start && end ? `${start} – ${end}` : start || end || 'Fechas por definir'
+    const year = tripStart ? new Date(`${tripStart}T00:00:00`).getFullYear() : new Date().getFullYear()
+    const newTrip: Trip = {
+      id: Date.now(),
+      title: name,
+      label: `${destination} ${year}`,
+      destination,
+      dates,
+      image: defaultTripImage,
+    }
+    setTrips((current) => [...current, newTrip])
+    setActiveTripId(newTrip.id)
+    setTripName('')
+    setTripDestination('')
+    setTripStart('')
+    setTripEnd('')
+    setModal(null)
+    showToast(`¡Viaje "${name}" creado! A planear se ha dicho`)
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -116,10 +183,13 @@ function Dashboard() {
           <span>viajando<span className="brand-light">con</span><br /><strong>Armandos</strong></span>
         </a>
 
-        <div className="trip-switcher">
-          <div className="trip-thumb"><img src="https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=120&q=80" alt="" /></div>
-          <div className="trip-switcher-copy"><small>VIAJE EN FAMILIA</small><strong>Verano 2027</strong></div>
-          <span className="chevron">⌄</span>
+        <div className="trip-switcher-wrap">
+          <button className="trip-switcher" aria-expanded={switcherOpen} onClick={() => setSwitcherOpen((open) => !open)}>
+            <div className="trip-thumb"><img src={activeTrip.image} alt="" /></div>
+            <div className="trip-switcher-copy"><small>{activeTrip.destination.toUpperCase()}</small><strong>{activeTrip.label}</strong></div>
+            <span className="chevron">⌄</span>
+          </button>
+          {switcherOpen && (<><div className="menu-overlay" onClick={() => setSwitcherOpen(false)} /><div className="dropdown-menu switcher-menu" role="menu"><p className="dropdown-caption">MIS VIAJES</p>{trips.map((trip) => <button key={trip.id} className={trip.id === activeTrip.id ? 'dropdown-item switcher-item active' : 'dropdown-item switcher-item'} role="menuitem" onClick={() => { setActiveTripId(trip.id); setSwitcherOpen(false); showToast(`Viendo ${trip.title}`) }}><span className="trip-thumb switcher-thumb"><img src={trip.image} alt="" /></span><span className="trip-switcher-copy"><small>{trip.destination.toUpperCase()}</small><strong>{trip.title}</strong></span>{trip.id === activeTrip.id && <span className="switcher-check"><Icon name="check" size={14} /></span>}</button>)}<button className="dropdown-item switcher-new" role="menuitem" onClick={() => { setSwitcherOpen(false); setModal('trip') }}><Icon name="plus" size={16} /> Crear nuevo viaje</button></div></>)}
         </div>
 
         <p className="nav-caption">PLANIFICA</p>
@@ -144,8 +214,8 @@ function Dashboard() {
 
       <main className="main-content" id="inicio">
         <header className="topbar">
-          <div className="breadcrumbs"><span>Mis viajes</span><span className="breadcrumb-slash">/</span><strong>Verano en familia</strong></div>
-          <div className="topbar-actions"><span role="status" style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, background: dbStatus === 'conectado' ? '#dcfce7' : dbStatus === 'error' ? '#fee2e2' : '#fef9c3', color: dbStatus === 'conectado' ? '#166534' : dbStatus === 'error' ? '#991b1b' : '#854d0e' }}>{dbStatus === 'conectando' ? 'Conectando a Supabase…' : dbStatus === 'conectado' ? 'Supabase conectado ✓' : 'Error de conexión — revisa la consola'}</span><div className="avatar-stack" aria-label="4 personas en el viaje"><span className="avatar avatar-coral">M</span><span className="avatar avatar-blue">P</span><span className="avatar avatar-yellow">A</span><span className="avatar avatar-green">L</span></div><button className="button button-outline invite-button" onClick={() => setModal('invite')}><Icon name="users" size={17} /> Invitar</button><button className="icon-button" aria-label="Más opciones" onClick={() => showToast('No hay notificaciones nuevas')}>···</button></div>
+          <div className="breadcrumbs"><span>Mis viajes</span><span className="breadcrumb-slash">/</span><strong>{activeTrip.title}</strong></div>
+          <div className="topbar-actions"><span role="status" style={{ fontSize: 12, padding: '4px 12px', borderRadius: 999, background: dbStatus === 'conectado' ? '#dcfce7' : dbStatus === 'error' ? '#fee2e2' : '#fef9c3', color: dbStatus === 'conectado' ? '#166534' : dbStatus === 'error' ? '#991b1b' : '#854d0e' }}>{dbStatus === 'conectando' ? 'Conectando a Supabase…' : dbStatus === 'conectado' ? 'Supabase conectado ✓' : 'Error de conexión — revisa la consola'}</span><div className="avatar-stack" aria-label="4 personas en el viaje"><span className="avatar avatar-coral">M</span><span className="avatar avatar-blue">P</span><span className="avatar avatar-yellow">A</span><span className="avatar avatar-green">L</span></div><button className="button button-outline invite-button" onClick={() => setModal('invite')}><Icon name="users" size={17} /> Invitar</button><div className="menu-anchor"><button className="icon-button" aria-label="Más opciones" aria-expanded={tripMenuOpen} onClick={() => setTripMenuOpen((open) => !open)}>···</button>{tripMenuOpen && (<><div className="menu-overlay" onClick={() => setTripMenuOpen(false)} /><div className="dropdown-menu" role="menu"><button className="dropdown-item" role="menuitem" onClick={() => { setTripMenuOpen(false); setModal('trip') }}><Icon name="plus" size={16} /> Crear nuevo viaje</button>{trips.length > 1 && <p className="dropdown-caption">CAMBIAR DE VIAJE</p>}{trips.filter((trip) => trip.id !== activeTrip.id).map((trip) => <button key={trip.id} className="dropdown-item" role="menuitem" onClick={() => { setActiveTripId(trip.id); setTripMenuOpen(false); showToast(`Viendo ${trip.title}`) }}><Icon name="plane" size={16} /> {trip.title}</button>)}</div></>)}</div></div>
         </header>
 
         <div className="page-container">
@@ -155,7 +225,7 @@ function Dashboard() {
           </section>
 
           <section className="trip-meta" aria-label="Detalles del viaje">
-            <div className="meta-item"><span className="meta-icon"><Icon name="calendar" size={18} /></span><span><small>FECHAS</small><strong>5 – 15 agosto, 2027</strong></span></div>
+            <div className="meta-item"><span className="meta-icon"><Icon name="calendar" size={18} /></span><span><small>FECHAS</small><strong>{activeTrip.dates}</strong></span></div>
             <span className="meta-divider" />
             <div className="meta-item"><span className="meta-icon meta-green"><Icon name="users" size={18} /></span><span><small>VIAJEROS</small><strong>4 personas</strong></span></div>
             <span className="meta-divider" />
@@ -166,10 +236,10 @@ function Dashboard() {
           <div className="dashboard-grid">
             <div className="primary-column">
               <section className="hero-card">
-                <img src="https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1800&q=90" alt="Casas coloridas a orillas del río en Portugal" />
+                <img src={activeTrip.image} alt={activeTrip.title} />
                 <div className="hero-overlay" />
                 <div className="hero-top"><span className="hero-badge"><span className="live-dot" /> EL VIAJE SE ACERCA</span><button className="hero-menu" aria-label="Más opciones" onClick={() => showToast('Opciones del viaje')}>···</button></div>
-                <div className="hero-copy"><span className="hero-location"><Icon name="pin" size={15} /> PORTUGAL</span><h2>Portugal, allá vamos</h2><p>Sol, sobremesas largas y recuerdos para siempre.</p></div>
+                <div className="hero-copy"><span className="hero-location"><Icon name="pin" size={15} /> {activeTrip.destination.toUpperCase()}</span><h2>{activeTrip.destination}, allá vamos</h2><p>Sol, sobremesas largas y recuerdos para siempre.</p></div>
                 <button className="hero-link" onClick={() => goTo('Itinerario', 'destinos')}>Explorar itinerario <Icon name="arrow" size={17} /></button>
               </section>
 
@@ -216,21 +286,30 @@ function Dashboard() {
               <section className="note-card"><span className="note-sparkle">✳</span><p>“Los mejores viajes se hacen en familia.”</p><span>— Una frase para el camino</span><div className="note-decoration">✦ &nbsp; ✧ &nbsp; ✦</div></section>
             </aside>
           </div>
-          <footer className="page-footer"><span>Hecho con <span className="heart">♥</span> para viajar juntos</span><span>Verano en familia · 2027</span></footer>
+          <footer className="page-footer"><span>Hecho con <span className="heart">♥</span> para viajar juntos</span><span>{activeTrip.title}</span></footer>
         </div>
       </main>
 
       {toast && <div className="toast" role="status"><span className="toast-check"><Icon name="check" size={14} /></span>{toast}</div>}
 
-      {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null) }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label="Cerrar" onClick={() => setModal(null)}><Icon name="close" /></button><span className="modal-icon"><Icon name={modal === 'destination' ? 'pin' : 'users'} size={22} /></span><p className="eyebrow">{modal === 'destination' ? 'EL MAPA ESTÁ ESPERANDO' : 'CUANTOS MÁS, MEJOR'}</p><h2 id="modal-title">{modal === 'destination' ? 'Añade una parada' : 'Invita a la familia'}</h2><p className="modal-description">{modal === 'destination' ? 'Ese sitio del que todos habláis merece un hueco en el viaje.' : 'Comparte la organización del viaje con quien tú quieras.'}</p>
-        {modal === 'destination' ? <form onSubmit={addDestination}><label htmlFor="destination-name">¿A dónde os gustaría ir?</label><input autoFocus id="destination-name" value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder="Ej. Sintra, Portugal" required /><button className="button button-primary modal-submit" type="submit">Añadir destino <Icon name="arrow" size={16} /></button></form> : <form onSubmit={inviteFamily}><label htmlFor="invite-email">Correo electrónico</label><input autoFocus id="invite-email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="familia@ejemplo.com" required /><button className="button button-primary modal-submit" type="submit">Enviar invitación <Icon name="send" size={16} /></button></form>}
+      {modal && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null) }}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label="Cerrar" onClick={() => setModal(null)}><Icon name="close" /></button><span className="modal-icon"><Icon name={modalCopy[modal].icon} size={22} /></span><p className="eyebrow">{modalCopy[modal].eyebrow}</p><h2 id="modal-title">{modalCopy[modal].title}</h2><p className="modal-description">{modalCopy[modal].description}</p>
+        {modal === 'destination' && <form onSubmit={addDestination}><label htmlFor="destination-name">¿A dónde os gustaría ir?</label><input autoFocus id="destination-name" value={destinationName} onChange={(event) => setDestinationName(event.target.value)} placeholder="Ej. Sintra, Portugal" required /><button className="button button-primary modal-submit" type="submit">Añadir destino <Icon name="arrow" size={16} /></button></form>}
+        {modal === 'invite' && <form onSubmit={inviteFamily}><label htmlFor="invite-email">Correo electrónico</label><input autoFocus id="invite-email" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="familia@ejemplo.com" required /><button className="button button-primary modal-submit" type="submit">Enviar invitación <Icon name="send" size={16} /></button></form>}
+        {modal === 'trip' && <form onSubmit={createTrip}><label htmlFor="trip-name">Nombre del viaje</label><input autoFocus id="trip-name" value={tripName} onChange={(event) => setTripName(event.target.value)} placeholder="Ej. Escapada a Roma" required /><label htmlFor="trip-destination">Destino principal</label><input id="trip-destination" value={tripDestination} onChange={(event) => setTripDestination(event.target.value)} placeholder="Ej. Italia" /><div className="modal-dates"><span><label htmlFor="trip-start">Desde</label><input id="trip-start" type="date" value={tripStart} onChange={(event) => setTripStart(event.target.value)} /></span><span><label htmlFor="trip-end">Hasta</label><input id="trip-end" type="date" value={tripEnd} onChange={(event) => setTripEnd(event.target.value)} /></span></div><button className="button button-primary modal-submit" type="submit">Crear viaje <Icon name="plane" size={16} /></button></form>}
       </section></div>}
     </div>
   )
 }
 
+// Ponlo en true para volver a exigir login
+const LOGIN_ENABLED = false
+
 function App() {
   const { session, loading } = useAuth()
+
+  if (!LOGIN_ENABLED) {
+    return <Dashboard />
+  }
 
   if (loading) {
     return <div className="auth-loading" role="status">Preparando el viaje…</div>
