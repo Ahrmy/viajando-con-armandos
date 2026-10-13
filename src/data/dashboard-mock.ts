@@ -43,7 +43,12 @@ export const initialDestinations: Destination[] = [
 ];
 
 export const initialTasks: TaskItem[] = [
-  { id: 1, label: "Mirar vuelos para toda la familia", who: "Mamá", done: true },
+  {
+    id: 1,
+    label: "Mirar vuelos para toda la familia",
+    who: "Mamá",
+    done: true,
+  },
   { id: 2, label: "Elegir alojamiento en Lisboa", who: "Papá", done: false },
   { id: 3, label: "Revisar documentación", who: "Todos", done: false },
 ];

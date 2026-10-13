@@ -104,10 +104,10 @@ export default function DashboardPage() {
     const formatDate = (iso: string) =>
       iso
         ? new Date(`${iso}T00:00:00`).toLocaleDateString("es-ES", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
         : "";
     const start = formatDate(startDate);
     const end = formatDate(endDate);
