@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Icon from "../atoms/Icon";
+import { defaultTripImage } from "../../data/dashboard-mock";
 import type { TripSummary } from "../../types/dashboard";
 
 interface TripSwitcherProps {
   trips: TripSummary[];
-  activeTrip: TripSummary;
+  activeTrip: TripSummary | null;
   onSelect: (trip: TripSummary) => void;
   onCreateNew: () => void;
 }
@@ -25,11 +26,11 @@ export default function TripSwitcher({
         onClick={() => setOpen((current) => !current)}
       >
         <div className="trip-thumb">
-          <img src={activeTrip.image} alt="" />
+          <img src={activeTrip?.image ?? defaultTripImage} alt="" />
         </div>
         <div className="trip-switcher-copy">
-          <small>{activeTrip.destination.toUpperCase()}</small>
-          <strong>{activeTrip.label}</strong>
+          <small>{activeTrip ? activeTrip.destination.toUpperCase() : "NUEVA AVENTURA"}</small>
+          <strong>{activeTrip?.label ?? "Crea tu primer viaje"}</strong>
         </div>
         <span className="chevron">⌄</span>
       </button>
@@ -42,7 +43,7 @@ export default function TripSwitcher({
               <button
                 key={trip.id}
                 className={
-                  trip.id === activeTrip.id
+                  trip.id === activeTrip?.id
                     ? "dropdown-item switcher-item active"
                     : "dropdown-item switcher-item"
                 }
@@ -59,7 +60,7 @@ export default function TripSwitcher({
                   <small>{trip.destination.toUpperCase()}</small>
                   <strong>{trip.title}</strong>
                 </span>
-                {trip.id === activeTrip.id && (
+                {trip.id === activeTrip?.id && (
                   <span className="switcher-check">
                     <Icon name="check" size={14} />
                   </span>

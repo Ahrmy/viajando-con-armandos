@@ -2,7 +2,7 @@ import Icon from "../atoms/Icon";
 import ProgressBar from "../atoms/ProgressBar";
 
 interface CountdownCardProps {
-  days: number;
+  days: number | null;
   progress: number;
 }
 
@@ -17,7 +17,7 @@ export default function CountdownCard({ days, progress }: CountdownCardProps) {
         <span className="card-dots">···</span>
       </div>
       <div className="countdown-number">
-        {days} <span>días</span>
+        {days ?? "—"} <span>días</span>
       </div>
       <p className="countdown-copy">¡Y empieza la aventura!</p>
       <ProgressBar className="countdown-progress" />

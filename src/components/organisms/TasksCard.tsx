@@ -7,7 +7,7 @@ import type { TaskItem } from "../../types/dashboard";
 
 interface TasksCardProps {
   tasks: TaskItem[];
-  onToggleTask: (id: number) => void;
+  onToggleTask: (id: string) => void;
   onAddTask: () => void;
   onViewAll: () => void;
 }

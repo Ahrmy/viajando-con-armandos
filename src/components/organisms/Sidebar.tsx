@@ -4,14 +4,14 @@ import TripSwitcher from "../molecules/TripSwitcher";
 import NavItem from "../molecules/NavItem";
 import FamilyCard from "../molecules/FamilyCard";
 import ProfileRow from "../molecules/ProfileRow";
-import { familyMembers } from "../../data/dashboard-mock";
-import type { TripSummary } from "../../types/dashboard";
+import type { FamilyMember, TripSummary } from "../../types/dashboard";
 
 interface SidebarProps {
   trips: TripSummary[];
-  activeTrip: TripSummary;
+  activeTrip: TripSummary | null;
   activeNav: string;
   destinationsCount: number;
+  members: FamilyMember[];
   onNavigate: (section: string, id: string) => void;
   onSelectTrip: (trip: TripSummary) => void;
   onCreateTrip: () => void;
@@ -28,6 +28,7 @@ export default function Sidebar({
   activeTrip,
   activeNav,
   destinationsCount,
+  members,
   onNavigate,
   onSelectTrip,
   onCreateTrip,
@@ -79,7 +80,7 @@ export default function Sidebar({
       </nav>
 
       <div className="sidebar-bottom">
-        <FamilyCard members={familyMembers} onInvite={onInvite} />
+        <FamilyCard members={members} onInvite={onInvite} />
         <button
           className="nav-item settings-button"
           onClick={() => onNotify("La configuración estará disponible pronto")}

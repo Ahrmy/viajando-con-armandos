@@ -3,8 +3,8 @@ import { useAuth } from './context/AuthContext'
 import Login from './components/Login'
 import DashboardPage from './components/pages/DashboardPage'
 
-// Ponlo en true para volver a exigir login
-const LOGIN_ENABLED = false
+// Ponlo en false para desarrollar la UI sin sesión (los datos requieren login por RLS)
+const LOGIN_ENABLED = true
 
 function App() {
   const { session, loading } = useAuth()

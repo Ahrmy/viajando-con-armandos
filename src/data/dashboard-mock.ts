@@ -1,9 +1,4 @@
-import type {
-  Destination,
-  FamilyMember,
-  TaskItem,
-  TripSummary,
-} from "../types/dashboard";
+import type { AvatarColor, Destination } from "../types/dashboard";
 
 export const defaultTripImage =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1800&q=90";
@@ -11,18 +6,16 @@ export const defaultTripImage =
 export const newDestinationImage =
   "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85";
 
-export const initialTrips: TripSummary[] = [
-  {
-    id: 1,
-    title: "Verano en familia",
-    label: "Verano 2027",
-    destination: "Portugal",
-    dates: "5 – 15 agosto, 2027",
-    image:
-      "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=1800&q=90",
-  },
+/** Paleta rotatoria para los avatares de miembros de la familia */
+export const avatarColors: AvatarColor[] = [
+  "coral",
+  "blue",
+  "yellow",
+  "green",
+  "lilac",
 ];
 
+// TODO: los destinos siguen en local hasta crear la tabla `trip_destinations`
 export const initialDestinations: Destination[] = [
   {
     name: "Lisboa",
@@ -40,29 +33,4 @@ export const initialDestinations: Destination[] = [
       "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=900&q=85",
     emoji: "🇵🇹",
   },
-];
-
-export const initialTasks: TaskItem[] = [
-  {
-    id: 1,
-    label: "Mirar vuelos para toda la familia",
-    who: "Mamá",
-    done: true,
-  },
-  { id: 2, label: "Elegir alojamiento en Lisboa", who: "Papá", done: false },
-  { id: 3, label: "Revisar documentación", who: "Todos", done: false },
-];
-
-export const familyMembers: FamilyMember[] = [
-  { label: "M", color: "coral" },
-  { label: "P", color: "blue" },
-  { label: "A", color: "yellow" },
-  { label: "+", color: "lilac" },
-];
-
-export const tripMembers: FamilyMember[] = [
-  { label: "M", color: "coral" },
-  { label: "P", color: "blue" },
-  { label: "A", color: "yellow" },
-  { label: "L", color: "green" },
 ];

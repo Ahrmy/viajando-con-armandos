@@ -3,7 +3,7 @@ import type { TaskItem } from "../../types/dashboard";
 
 interface TaskRowProps {
   task: TaskItem;
-  onToggle: (id: number) => void;
+  onToggle: (id: string) => void;
 }
 
 export default function TaskRow({ task, onToggle }: TaskRowProps) {

@@ -4,14 +4,14 @@ import Button from "../atoms/Button";
 import StatusPill from "../atoms/StatusPill";
 import Breadcrumbs from "../molecules/Breadcrumbs";
 import AvatarStack from "../molecules/AvatarStack";
-import { tripMembers } from "../../data/dashboard-mock";
-import type { DbStatus, TripSummary } from "../../types/dashboard";
+import type { DbStatus, FamilyMember, TripSummary } from "../../types/dashboard";
 
 interface TopbarProps {
   tripTitle: string;
   dbStatus: DbStatus;
+  members: FamilyMember[];
   trips: TripSummary[];
-  activeTrip: TripSummary;
+  activeTrip: TripSummary | null;
   onInvite: () => void;
   onCreateTrip: () => void;
   onSelectTrip: (trip: TripSummary) => void;
@@ -20,6 +20,7 @@ interface TopbarProps {
 export default function Topbar({
   tripTitle,
   dbStatus,
+  members,
   trips,
   activeTrip,
   onInvite,
@@ -27,14 +28,17 @@ export default function Topbar({
   onSelectTrip,
 }: TopbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const otherTrips = trips.filter((trip) => trip.id !== activeTrip.id);
+  const otherTrips = trips.filter((trip) => trip.id !== activeTrip?.id);
 
   return (
     <header className="topbar">
       <Breadcrumbs root="Mis viajes" current={tripTitle} />
       <div className="topbar-actions">
         <StatusPill status={dbStatus} />
-        <AvatarStack members={tripMembers} ariaLabel="4 personas en el viaje" />
+        <AvatarStack
+          members={members}
+          ariaLabel={`${members.length} personas en el viaje`}
+        />
         <Button variant="outline" className="invite-button" onClick={onInvite}>
           <Icon name="users" size={17} /> Invitar
         </Button>

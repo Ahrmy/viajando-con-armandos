@@ -1,12 +1,14 @@
 export type AvatarColor = "coral" | "blue" | "yellow" | "lilac" | "green";
 
 export interface TripSummary {
-  id: number;
+  id: string;
   title: string;
   label: string;
   destination: string;
   dates: string;
   image: string;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export interface Destination {
@@ -18,7 +20,7 @@ export interface Destination {
 }
 
 export interface TaskItem {
-  id: number;
+  id: string;
   label: string;
   who: string;
   done: boolean;

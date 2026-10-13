@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../context/AuthContext";
 import DashboardTemplate from "../templates/DashboardTemplate";
 import Sidebar from "../organisms/Sidebar";
@@ -14,35 +13,53 @@ import TasksCard from "../organisms/TasksCard";
 import BudgetCard from "../organisms/BudgetCard";
 import NoteCard from "../organisms/NoteCard";
 import DashboardModals from "../organisms/DashboardModals";
+import EmptyTripsState from "../organisms/EmptyTripsState";
 import PageFooter from "../molecules/PageFooter";
 import Toast from "../atoms/Toast";
 import {
-  defaultTripImage,
   initialDestinations,
-  initialTasks,
-  initialTrips,
   newDestinationImage,
 } from "../../data/dashboard-mock";
+import {
+  createFamily,
+  daysUntil,
+  fetchExpensesTotal,
+  fetchFamilyMembers,
+  fetchMyFamily,
+  fetchTasks,
+  fetchTravelersCount,
+  fetchTrips,
+  insertTrip,
+  updateTaskStatus,
+  type FamilyInfo,
+} from "../../lib/dashboard-data";
 import type {
   DbStatus,
   Destination,
+  FamilyMember,
   ModalKind,
   NewTripInput,
+  TaskItem,
   TripSummary,
 } from "../../types/dashboard";
 
 export default function DashboardPage() {
   const { profile, user, signOut } = useAuth();
   const [activeNav, setActiveNav] = useState("Resumen");
-  const [trips, setTrips] = useState(initialTrips);
-  const [activeTripId, setActiveTripId] = useState(initialTrips[0].id);
+  const [family, setFamily] = useState<FamilyInfo | null>(null);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [trips, setTrips] = useState<TripSummary[]>([]);
+  const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [destinations, setDestinations] = useState(initialDestinations);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [spent, setSpent] = useState(0);
+  const [travelers, setTravelers] = useState(0);
   const [modal, setModal] = useState<ModalKind>(null);
   const [toast, setToast] = useState("");
   const [dbStatus, setDbStatus] = useState<DbStatus>("conectando");
 
-  const activeTrip = trips.find((trip) => trip.id === activeTripId) ?? trips[0];
+  const activeTrip =
+    trips.find((trip) => trip.id === activeTripId) ?? trips[0] ?? null;
   const completedTasks = tasks.filter((task) => task.done).length;
   const tasksProgress = tasks.length
     ? Math.round((completedTasks / tasks.length) * 100)
@@ -50,22 +67,6 @@ export default function DashboardPage() {
   const profileName = profile?.full_name ?? "Viajero";
   const profileInitial = profileName.trim().charAt(0).toUpperCase() || "V";
   const profileSubtitle = user?.email ?? "";
-
-  useEffect(() => {
-    supabase
-      .from("profiles")
-      .select("*")
-      .limit(1)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Error de Supabase:", error.message);
-          setDbStatus("error");
-        } else {
-          console.log("Conectado a Supabase:", data);
-          setDbStatus("conectado");
-        }
-      });
-  }, []);
 
   const goTo = (section: string, id: string) => {
     setActiveNav(section);
@@ -76,6 +77,73 @@ export default function DashboardPage() {
     setToast(message);
     window.setTimeout(() => setToast(""), 2800);
   };
+
+  // Carga inicial: familia (con onboarding si no existe), miembros y viajes
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let fam = await fetchMyFamily(user.id);
+        if (!fam) {
+          const baseName = profile?.full_name?.trim() || "la familia";
+          fam = await createFamily(user.id, `Familia de ${baseName}`);
+          if (!cancelled) showToast(`Hemos creado "${fam.name}" para empezar`);
+        }
+        if (cancelled) return;
+        setFamily(fam);
+        const [memberList, tripList] = await Promise.all([
+          fetchFamilyMembers(fam.id),
+          fetchTrips(fam.id),
+        ]);
+        if (cancelled) return;
+        setMembers(memberList);
+        setTrips(tripList);
+        setActiveTripId((current) => current ?? tripList[0]?.id ?? null);
+        setDbStatus("conectado");
+      } catch (error) {
+        console.error("Error cargando el dashboard:", error);
+        if (!cancelled) setDbStatus("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Datos del viaje activo: tareas, gasto total y viajeros
+  useEffect(() => {
+    if (!activeTripId) {
+      setTasks([]);
+      setSpent(0);
+      setTravelers(0);
+      return;
+    }
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [taskList, total, count] = await Promise.all([
+          fetchTasks(activeTripId),
+          fetchExpensesTotal(activeTripId),
+          fetchTravelersCount(activeTripId),
+        ]);
+        if (cancelled) return;
+        setTasks(taskList);
+        setSpent(total);
+        setTravelers(count);
+      } catch (error) {
+        console.error("Error cargando los datos del viaje:", error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTripId]);
 
   const selectTrip = (trip: TripSummary) => {
     setActiveTripId(trip.id);
@@ -100,42 +168,49 @@ export default function DashboardPage() {
     showToast("¡Invitación lista para compartir!");
   };
 
-  const createTrip = ({ name, destination, startDate, endDate }: NewTripInput) => {
-    const formatDate = (iso: string) =>
-      iso
-        ? new Date(`${iso}T00:00:00`).toLocaleDateString("es-ES", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })
-        : "";
-    const start = formatDate(startDate);
-    const end = formatDate(endDate);
-    const dates =
-      start && end ? `${start} – ${end}` : start || end || "Fechas por definir";
-    const year = startDate
-      ? new Date(`${startDate}T00:00:00`).getFullYear()
-      : new Date().getFullYear();
-    const finalDestination = destination || "Por descubrir";
-    const newTrip: TripSummary = {
-      id: Date.now(),
-      title: name,
-      label: `${finalDestination} ${year}`,
-      destination: finalDestination,
-      dates,
-      image: defaultTripImage,
-    };
-    setTrips((current) => [...current, newTrip]);
-    setActiveTripId(newTrip.id);
-    showToast(`¡Viaje "${name}" creado! A planear se ha dicho`);
+  const createTrip = async ({
+    name,
+    destination,
+    startDate,
+    endDate,
+  }: NewTripInput) => {
+    if (!family || !user) {
+      showToast("Aún estamos preparando tu familia, inténtalo en un momento");
+      return;
+    }
+    try {
+      const newTrip = await insertTrip({
+        familyId: family.id,
+        createdBy: user.id,
+        title: name,
+        destination,
+        startDate,
+        endDate,
+      });
+      setTrips((current) => [...current, newTrip]);
+      setActiveTripId(newTrip.id);
+      showToast(`¡Viaje "${name}" creado! A planear se ha dicho`);
+    } catch (error) {
+      console.error("Error creando el viaje:", error);
+      showToast("No se pudo crear el viaje — revisa la consola");
+    }
   };
 
-  const toggleTask = (id: number) => {
+  const toggleTask = (id: string) => {
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    const done = !task.done;
+    // Actualización optimista: se revierte si Supabase falla
     setTasks((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, done: !item.done } : item,
-      ),
+      current.map((item) => (item.id === id ? { ...item, done } : item)),
     );
+    updateTaskStatus(id, done).catch((error: unknown) => {
+      console.error("Error actualizando la tarea:", error);
+      setTasks((current) =>
+        current.map((item) => (item.id === id ? { ...item, done: !done } : item)),
+      );
+      showToast("No se pudo actualizar la tarea");
+    });
   };
 
   const favoriteDestination = (destination: Destination) => {
@@ -150,6 +225,7 @@ export default function DashboardPage() {
           activeTrip={activeTrip}
           activeNav={activeNav}
           destinationsCount={destinations.length}
+          members={members}
           onNavigate={goTo}
           onSelectTrip={selectTrip}
           onCreateTrip={() => setModal("trip")}
@@ -163,8 +239,9 @@ export default function DashboardPage() {
       }
       topbar={
         <Topbar
-          tripTitle={activeTrip.title}
+          tripTitle={activeTrip?.title ?? "Mis viajes"}
           dbStatus={dbStatus}
+          members={members}
           trips={trips}
           activeTrip={activeTrip}
           onInvite={() => setModal("invite")}
@@ -172,7 +249,7 @@ export default function DashboardPage() {
           onSelectTrip={selectTrip}
         />
       }
-      footer={<PageFooter tripTitle={activeTrip.title} />}
+      footer={<PageFooter tripTitle={activeTrip?.title ?? "Sin viajes"} />}
       overlays={
         <>
           {toast && <Toast message={toast} />}
@@ -186,46 +263,56 @@ export default function DashboardPage() {
         </>
       }
     >
-      <WelcomeHeader onAddDestination={() => setModal("destination")} />
+      {activeTrip ? (
+        <>
+          <WelcomeHeader onAddDestination={() => setModal("destination")} />
 
-      <TripMetaBar
-        dates={activeTrip.dates}
-        travelers="4 personas"
-        destinationsCount={destinations.length}
-      />
+          <TripMetaBar
+            dates={activeTrip.dates}
+            travelers={`${travelers > 0 ? travelers : members.length} personas`}
+            destinationsCount={destinations.length}
+          />
 
-      <div className="dashboard-grid">
-        <div className="primary-column">
-          <HeroCard
-            trip={activeTrip}
-            onMenu={() => showToast("Opciones del viaje")}
-            onExplore={() => goTo("Itinerario", "destinos")}
-          />
-          <DestinationsSection
-            destinations={destinations}
-            onAdd={() => setModal("destination")}
-            onFavorite={favoriteDestination}
-            onViewItinerary={() => setModal("destination")}
-          />
-          <ItineraryPreview onViewAll={() => goTo("Itinerario", "destinos")} />
-        </div>
+          <div className="dashboard-grid">
+            <div className="primary-column">
+              <HeroCard
+                trip={activeTrip}
+                onMenu={() => showToast("Opciones del viaje")}
+                onExplore={() => goTo("Itinerario", "destinos")}
+              />
+              <DestinationsSection
+                destinations={destinations}
+                onAdd={() => setModal("destination")}
+                onFavorite={favoriteDestination}
+                onViewItinerary={() => setModal("destination")}
+              />
+              <ItineraryPreview onViewAll={() => goTo("Itinerario", "destinos")} />
+            </div>
 
-        <aside className="right-column">
-          <CountdownCard days={304} progress={tasksProgress} />
-          <TasksCard
-            tasks={tasks}
-            onToggleTask={toggleTask}
-            onAddTask={() => showToast("Pronto podrás añadir más tareas")}
-            onViewAll={() => goTo("Ideas", "ideas")}
-          />
-          <BudgetCard
-            spent={1250}
-            total={4000}
-            onOpen={() => showToast("Resumen del presupuesto familiar")}
-          />
-          <NoteCard />
-        </aside>
-      </div>
+            <aside className="right-column">
+              <CountdownCard
+                days={daysUntil(activeTrip.startDate)}
+                progress={tasksProgress}
+              />
+              <TasksCard
+                tasks={tasks}
+                onToggleTask={toggleTask}
+                onAddTask={() => showToast("Pronto podrás añadir más tareas")}
+                onViewAll={() => goTo("Ideas", "ideas")}
+              />
+              {/* TODO: el presupuesto total será editable por viaje */}
+              <BudgetCard
+                spent={spent}
+                total={4000}
+                onOpen={() => showToast("Resumen del presupuesto familiar")}
+              />
+              <NoteCard />
+            </aside>
+          </div>
+        </>
+      ) : (
+        <EmptyTripsState onCreateTrip={() => setModal("trip")} />
+      )}
     </DashboardTemplate>
   );
 }
