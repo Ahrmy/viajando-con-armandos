@@ -188,6 +188,60 @@ export interface Database {
           },
         ];
       };
+      trip_destinations: {
+        Row: {
+          id: string;
+          trip_id: string;
+          name: string;
+          country: string | null;
+          nights: number | null;
+          image_url: string | null;
+          emoji: string;
+          position: number;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trip_id: string;
+          name: string;
+          country?: string | null;
+          nights?: number | null;
+          image_url?: string | null;
+          emoji?: string;
+          position?: number;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          trip_id?: string;
+          name?: string;
+          country?: string | null;
+          nights?: number | null;
+          image_url?: string | null;
+          emoji?: string;
+          position?: number;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trip_destinations_trip_id_fkey";
+            columns: ["trip_id"];
+            isOneToOne: false;
+            referencedRelation: "trips";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trip_destinations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       trip_days: {
         Row: {
           id: string;

@@ -12,6 +12,7 @@ export interface TripSummary {
 }
 
 export interface Destination {
+  id: string;
   name: string;
   country: string;
   days: string;

@@ -17,18 +17,16 @@ import EmptyTripsState from "../organisms/EmptyTripsState";
 import PageFooter from "../molecules/PageFooter";
 import Toast from "../atoms/Toast";
 import {
-  initialDestinations,
-  newDestinationImage,
-} from "../../data/dashboard-mock";
-import {
   createFamily,
   daysUntil,
+  fetchDestinations,
   fetchExpensesTotal,
   fetchFamilyMembers,
   fetchMyFamily,
   fetchTasks,
   fetchTravelersCount,
   fetchTrips,
+  insertDestination,
   insertTrip,
   updateTaskStatus,
   type FamilyInfo,
@@ -50,7 +48,7 @@ export default function DashboardPage() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [trips, setTrips] = useState<TripSummary[]>([]);
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
-  const [destinations, setDestinations] = useState(initialDestinations);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [spent, setSpent] = useState(0);
   const [travelers, setTravelers] = useState(0);
@@ -114,10 +112,11 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Datos del viaje activo: tareas, gasto total y viajeros
+  // Datos del viaje activo: tareas, destinos, gasto total y viajeros
   useEffect(() => {
     if (!activeTripId) {
       setTasks([]);
+      setDestinations([]);
       setSpent(0);
       setTravelers(0);
       return;
@@ -126,13 +125,15 @@ export default function DashboardPage() {
 
     (async () => {
       try {
-        const [taskList, total, count] = await Promise.all([
+        const [taskList, destinationList, total, count] = await Promise.all([
           fetchTasks(activeTripId),
+          fetchDestinations(activeTripId),
           fetchExpensesTotal(activeTripId),
           fetchTravelersCount(activeTripId),
         ]);
         if (cancelled) return;
         setTasks(taskList);
+        setDestinations(destinationList);
         setSpent(total);
         setTravelers(count);
       } catch (error) {
@@ -150,18 +151,21 @@ export default function DashboardPage() {
     showToast(`Viendo ${trip.title}`);
   };
 
-  const addDestination = (name: string) => {
-    setDestinations((current) => [
-      ...current,
-      {
+  const addDestination = async (name: string) => {
+    if (!activeTrip || !user) return;
+    try {
+      const created = await insertDestination(
+        activeTrip.id,
+        user.id,
         name,
-        country: "Por descubrir",
-        days: "Por planificar",
-        image: newDestinationImage,
-        emoji: "📍",
-      },
-    ]);
-    showToast(`${name} se ha añadido al viaje`);
+        destinations.length,
+      );
+      setDestinations((current) => [...current, created]);
+      showToast(`${name} se ha añadido al viaje`);
+    } catch (error) {
+      console.error("Error añadiendo el destino:", error);
+      showToast("No se pudo añadir el destino — revisa la consola");
+    }
   };
 
   const inviteFamily = (_email: string) => {

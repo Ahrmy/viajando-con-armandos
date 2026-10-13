@@ -129,6 +129,32 @@ alter table public.comments        enable row level security;
 alter table public.notifications   enable row level security;
 
 -- -------------------------------------------------------------
+-- 3b. Limpiar TODAS las policies existentes en las tablas de la app
+--     (incluidas las de versiones antiguas con otros nombres, que
+--     podían ser recursivas o más permisivas de lo esperado).
+--     Las policies nuevas se crean en las secciones siguientes.
+-- -------------------------------------------------------------
+do $$
+declare
+  pol record;
+begin
+  for pol in
+    select tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in (
+        'profiles', 'families', 'family_members', 'trips',
+        'trip_members', 'trip_days', 'activities', 'tasks',
+        'expenses', 'expense_splits', 'packing_items', 'comments',
+        'notifications', 'trip_destinations'
+      )
+  loop
+    execute format('drop policy if exists %I on public.%I', pol.policyname, pol.tablename);
+  end loop;
+end
+$$;
+
+-- -------------------------------------------------------------
 -- 4. PROFILES — ves tu perfil y el de tu familia; editas el tuyo
 -- -------------------------------------------------------------
 drop policy if exists "profiles_select" on public.profiles;

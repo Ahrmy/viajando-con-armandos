@@ -34,7 +34,7 @@ export default function DestinationsSection({
       <div className="destination-grid">
         {destinations.map((destination, index) => (
           <DestinationCard
-            key={`${destination.name}-${index}`}
+            key={destination.id}
             destination={destination}
             index={index}
             onFavorite={onFavorite}

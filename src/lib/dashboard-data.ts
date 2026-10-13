@@ -1,6 +1,15 @@
 import { supabase } from "./supabaseClient";
-import { avatarColors, defaultTripImage } from "../data/dashboard-mock";
-import type { FamilyMember, TaskItem, TripSummary } from "../types/dashboard";
+import {
+  avatarColors,
+  defaultTripImage,
+  newDestinationImage,
+} from "../data/dashboard-mock";
+import type {
+  Destination,
+  FamilyMember,
+  TaskItem,
+  TripSummary,
+} from "../types/dashboard";
 import type { Tables } from "../types/database";
 
 type TripRow = Tables<"trips">;
@@ -204,4 +213,49 @@ export async function fetchTravelersCount(tripId: string): Promise<number> {
     .eq("trip_id", tripId);
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+// ------------------------------------------------------------------
+// Destinos del viaje
+// ------------------------------------------------------------------
+
+type DestinationRow = Tables<"trip_destinations">;
+
+export function mapDestination(row: DestinationRow): Destination {
+  return {
+    id: row.id,
+    name: row.name,
+    country: row.country ?? "Por descubrir",
+    days: row.nights != null ? `${row.nights} noches` : "Por planificar",
+    image: row.image_url ?? newDestinationImage,
+    emoji: row.emoji,
+  };
+}
+
+export async function fetchDestinations(
+  tripId: string,
+): Promise<Destination[]> {
+  const { data, error } = await supabase
+    .from("trip_destinations")
+    .select("*")
+    .eq("trip_id", tripId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data.map(mapDestination);
+}
+
+export async function insertDestination(
+  tripId: string,
+  createdBy: string,
+  name: string,
+  position: number,
+): Promise<Destination> {
+  const { data, error } = await supabase
+    .from("trip_destinations")
+    .insert({ trip_id: tripId, created_by: createdBy, name, position })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return mapDestination(data);
 }
